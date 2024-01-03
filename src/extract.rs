@@ -42,8 +42,6 @@ pub fn sample(image: &RgbaImage, samples: u64) -> Vec<Color> {
     let mut rng = rand::thread_rng();
 
     for _ in 0..samples {
-        // let x = rng.gen_range(0..w);
-        // let y = rng.gen_range(0..h);
         let x = uniform_x.sample(&mut rng);
         let y = uniform_y.sample(&mut rng);
 

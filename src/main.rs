@@ -2,16 +2,24 @@
 
 use clap::{Arg, ArgAction, Command, Parser, Subcommand};
 use extract::*;
+use serde::Serialize;
 use serde_json::json;
 use shared::Color;
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr, UdpSocket};
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod extract;
-mod gui;
 mod shared;
+
+#[derive(Serialize, Default)]
+struct Data {
+    rgb_colors: Vec<[u8; 3]>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    debug_message: Option<String>,
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -32,20 +40,36 @@ struct Cli {
     debug: bool,
 }
 
+struct Debug {
+    timer: Instant,
+}
+
 fn main() {
     let cli = Cli::parse();
 
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
 
+    let mut data = Data::default();
+
+    let mut debug = cli.debug.then_some(Debug {
+        timer: Instant::now(),
+    });
+
     loop {
         let screenshot = get_image();
-        let samples = sample(&screenshot, 1000);
+        if let Some(ref mut v) = debug {
+            v.timer = Instant::now();
+        }
+
+        let samples = sample(&screenshot, cli.samples);
         let colors = mean(&samples);
-        let colors = colors
-            .into_iter()
-            .map(|v| [v.r, v.g, v.b])
-            .collect::<Vec<_>>();
-        let json = serde_json::to_string(&colors).unwrap();
+
+        data.rgb_colors = colors.into_iter().map(|v| [v.r, v.g, v.b]).collect();
+        if let Some(ref v) = debug {
+            data.debug_message = Some(format!("algorithm: {:?}ms", v.timer.elapsed().as_millis()));
+        }
+
+        let json = serde_json::to_string(&data).unwrap();
 
         socket
             .send_to(
