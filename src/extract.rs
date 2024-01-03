@@ -25,9 +25,12 @@ pub fn mean(colors: &Vec<Color>) -> Vec<Color> {
     }]
 }
 
-pub fn get_image() -> RgbaImage {
-    let screens = Screen::all().unwrap();
-    screens.first().unwrap().capture().unwrap()
+pub fn screenshot(factor: f32) -> RgbaImage {
+    assert!((0. ..=1.0).contains(&factor));
+    let mut display_info = Screen::all().unwrap().first().unwrap().display_info;
+    display_info.scale_factor = factor;
+    let screen = Screen::new(&display_info);
+    screen.capture().unwrap()
 }
 
 pub fn sample(image: &RgbaImage, samples: u64) -> Vec<Color> {

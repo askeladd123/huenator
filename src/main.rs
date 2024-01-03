@@ -38,6 +38,14 @@ struct Cli {
 
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    #[arg(
+        short,
+        long,
+        default_value_t = 0.25,
+        help = "Screenshot resoulution, where 1.0 is full."
+    )]
+    factor: f32,
 }
 
 struct Debug {
@@ -81,7 +89,7 @@ fn main() {
         if let Some(ref mut v) = debug {
             v.screenshot_start = Instant::now();
         }
-        let screenshot = get_image();
+        let screenshot = screenshot(cli.factor);
         if let Some(ref mut v) = debug {
             v.screenshot_end = Instant::now();
         }
