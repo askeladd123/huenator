@@ -41,7 +41,21 @@ struct Cli {
 }
 
 struct Debug {
-    timer: Instant,
+    screenshot_start: Instant,
+    screenshot_end: Instant,
+    algorithm_start: Instant,
+    algorithm_end: Instant,
+}
+
+impl Debug {
+    fn new() -> Self {
+        Self {
+            screenshot_start: Instant::now(),
+            screenshot_end: Instant::now(),
+            algorithm_start: Instant::now(),
+            algorithm_end: Instant::now(),
+        }
+    }
 }
 
 fn main() {
@@ -59,24 +73,39 @@ fn main() {
 
     let mut data = Data::default();
 
-    let mut debug = cli.debug.then_some(Debug {
-        timer: Instant::now(),
-    });
+    let mut debug = cli.debug.then_some(Debug::new());
 
     loop {
-        let start_time = Instant::now();
+        let loop_start = Instant::now();
 
+        if let Some(ref mut v) = debug {
+            v.screenshot_start = Instant::now();
+        }
         let screenshot = get_image();
         if let Some(ref mut v) = debug {
-            v.timer = Instant::now();
+            v.screenshot_end = Instant::now();
         }
 
+        if let Some(ref mut v) = debug {
+            v.algorithm_start = Instant::now();
+        }
         let samples = sample(&screenshot, cli.samples);
         let colors = mean(&samples);
+        if let Some(ref mut v) = debug {
+            v.algorithm_end = Instant::now();
+        }
 
         data.rgb_colors = colors.into_iter().map(|v| [v.r, v.g, v.b]).collect();
         if let Some(ref v) = debug {
-            data.debug_message = Some(format!("algorithm: {:?}ms", v.timer.elapsed().as_millis()));
+            data.debug_message = Some(format!(
+                "scr {:?}ms | alg {:?}ms",
+                v.screenshot_end
+                    .duration_since(v.screenshot_start)
+                    .as_millis(),
+                v.algorithm_end
+                    .duration_since(v.algorithm_start)
+                    .as_millis(),
+            ));
         }
 
         let json = serde_json::to_string(&data).unwrap();
@@ -88,7 +117,7 @@ fn main() {
             )
             .unwrap();
 
-        if let Some(remaining) = period.checked_sub(start_time.elapsed()) {
+        if let Some(remaining) = period.checked_sub(loop_start.elapsed()) {
             sleep(remaining);
         }
     }
