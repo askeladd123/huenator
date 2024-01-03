@@ -47,6 +47,14 @@ struct Debug {
 fn main() {
     let cli = Cli::parse();
 
+    if cli.period < 15 {
+        println!(
+            "\x1b[33mwarning: \x1b[0mPeriod set to {}ms. Will be inaccurate below 15ms.",
+            cli.period
+        );
+    }
+    let period = Duration::from_millis(cli.period);
+
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
 
     let mut data = Data::default();
@@ -56,6 +64,8 @@ fn main() {
     });
 
     loop {
+        let start_time = Instant::now();
+
         let screenshot = get_image();
         if let Some(ref mut v) = debug {
             v.timer = Instant::now();
@@ -78,6 +88,8 @@ fn main() {
             )
             .unwrap();
 
-        sleep(Duration::from_millis(cli.period));
+        if let Some(remaining) = period.checked_sub(start_time.elapsed()) {
+            sleep(remaining);
+        }
     }
 }
