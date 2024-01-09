@@ -46,6 +46,31 @@ struct Cli {
         help = "Screenshot resoulution, where 1.0 is full."
     )]
     factor: f32,
+
+    #[command(subcommand)]
+    algorithm: Option<Algorithm>,
+}
+
+#[derive(Subcommand)]
+enum Algorithm {
+    Mean,
+    Histogram {
+        #[arg(
+            short,
+            long,
+            default_value = "6",
+            help = "How many times color space is split into buckets."
+        )]
+        splits: u8,
+
+        #[arg(
+            short,
+            long,
+            default_value = "6",
+            help = "Out of the largest buckets, how many are returned."
+        )]
+        results: u32,
+    },
 }
 
 struct Debug {
@@ -83,6 +108,8 @@ fn main() {
 
     let mut debug = cli.debug.then_some(Debug::new());
 
+    let algorithm = cli.algorithm.unwrap_or(Algorithm::Mean);
+
     loop {
         let loop_start = Instant::now();
 
@@ -98,12 +125,15 @@ fn main() {
             v.algorithm_start = Instant::now();
         }
         let samples = sample(&screenshot, cli.samples);
-        let colors = mean(&samples);
+        let colors = match algorithm {
+            Algorithm::Mean => mean_rgb(&samples),
+            Algorithm::Histogram { splits, results } => histogram_rgb(&samples, splits, results),
+        };
         if let Some(ref mut v) = debug {
             v.algorithm_end = Instant::now();
         }
 
-        data.rgb_colors = colors.into_iter().map(|v| [v.r, v.g, v.b]).collect();
+        data.rgb_colors = colors.into_iter().map(|v| v.0).collect();
         if let Some(ref v) = debug {
             data.debug_message = Some(format!(
                 "scr {:?}ms | alg {:?}ms",

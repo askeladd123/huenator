@@ -1,28 +1,98 @@
-use image::{Pixel, Rgb, RgbaImage};
+use std::cmp::Reverse;
+use std::collections::HashMap;
+
+use image::{Pixel, RgbaImage};
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use screenshots::Screen;
 
-use crate::shared::Color;
+use crate::shared::*;
 
-pub fn mean(colors: &Vec<Color>) -> Vec<Color> {
+// pub fn mean_rgb(colors: &[Color]) -> Vec<Color> {
+//     let (mut r, mut g, mut b) = (0, 0, 0);
+//     for color in colors.iter() {
+//         r += color.r as u32;
+//         g += color.g as u32;
+//         b += color.b as u32;
+//     }
+
+//     let n = colors.len() as u32;
+//     r /= n;
+//     g /= n;
+//     b /= n;
+
+//     vec![Color {
+//         r: r as u8,
+//         g: g as u8,
+//         b: b as u8,
+//     }]
+// }
+
+pub fn mean_rgb(colors: &[color::Rgb]) -> Vec<color::Rgb> {
     let (mut r, mut g, mut b) = (0, 0, 0);
-    for color in colors.iter() {
-        r += color.r as u32;
-        g += color.g as u32;
-        b += color.b as u32;
+    let n = colors.len() as u32;
+
+    for i in colors.iter() {
+        r += i.0[0] as u32;
+        g += i.0[1] as u32;
+        b += i.0[2] as u32;
     }
 
-    let n = colors.len() as u32;
-    r /= n;
-    g /= n;
-    b /= n;
+    vec![color::Rgb([(r / n) as u8, (g / n) as u8, (b / n) as u8])]
+}
 
-    vec![Color {
-        r: r as u8,
-        g: g as u8,
-        b: b as u8,
-    }]
+pub fn k_means_clustring_cielab(colors: &[Color]) -> Vec<Color> {
+    todo!()
+}
+
+pub fn k_means_clustring_rgb(colors: &[Color]) -> Vec<Color> {
+    todo!()
+}
+
+pub fn median_cut_cielab(colors: &[Color]) -> Vec<Color> {
+    todo!()
+}
+
+pub fn median_cut_rgb(colors: &[Color]) -> Vec<Color> {
+    todo!()
+}
+
+pub fn histogram_rgb(colors: &[color::Rgb], splits: u8, results: u32) -> Vec<color::Rgb> {
+    use color::Rgb;
+
+    let bucket_amount = u8::MAX / splits;
+
+    let funnel = |x: u8| x / bucket_amount;
+
+    let mut buckets = HashMap::with_capacity((splits * 3) as usize);
+    for rgb in colors.iter() {
+        buckets
+            .entry((funnel(rgb.0[0]), funnel(rgb.0[1]), funnel(rgb.0[2])))
+            .or_insert(Vec::new())
+            .push(*rgb);
+    }
+
+    let mut buckets = buckets.into_values().collect::<Vec<_>>();
+    buckets.sort_unstable_by_key(|v| Reverse(v.len()));
+    buckets.truncate(results as usize);
+
+    let mean = |v: Vec<Rgb>| {
+        let (mut r, mut g, mut b) = (0, 0, 0);
+        let n = v.len() as u32;
+
+        for i in v.iter() {
+            r += i.0[0] as u32;
+            g += i.0[1] as u32;
+            b += i.0[2] as u32;
+        }
+
+        Rgb([(r / n) as u8, (g / n) as u8, (b / n) as u8])
+    };
+    buckets.into_iter().map(mean).collect()
+}
+
+pub fn population(colors: &[Color]) -> Vec<Color> {
+    todo!()
 }
 
 pub fn screenshot(factor: f32) -> RgbaImage {
@@ -33,7 +103,7 @@ pub fn screenshot(factor: f32) -> RgbaImage {
     screen.capture().unwrap()
 }
 
-pub fn sample(image: &RgbaImage, samples: u64) -> Vec<Color> {
+pub fn sample(image: &RgbaImage, samples: u64) -> Vec<color::Rgb> {
     let mut sampled = Vec::with_capacity(samples as usize);
     let (w, h) = (image.width(), image.height());
 
@@ -48,9 +118,9 @@ pub fn sample(image: &RgbaImage, samples: u64) -> Vec<Color> {
         let x = uniform_x.sample(&mut rng);
         let y = uniform_y.sample(&mut rng);
 
-        let Rgb([r, g, b]) = image.get_pixel(x, y).to_rgb();
+        let image::Rgb([r, g, b]) = image.get_pixel(x, y).to_rgb();
 
-        sampled.push(Color { r, g, b });
+        sampled.push(color::Rgb([r, g, b]));
     }
 
     sampled
